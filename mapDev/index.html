@@ -1,0 +1,498 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<link rel="shortcut icon" href="">
+<script type="text/javascript" src="/dev/ControlPanel.js"></script>
+<title>DnD Map Thingy</title>
+
+</head>
+
+<body onload="init()"> 
+<p> You Suck Jose </p>
+<div style="display:inline">
+<canvas id="canvas" width="820px" height="820px"></canvas>
+</div>
+<button onclick="addToken(10,10,40,40,'dev/Token.jpg')">Add Token</Button>
+<input type="text" onkeypress="null" id="test"></input>
+<script>
+
+document.onkeydown = function(e) {
+    if(e.target.id !="test")
+        if(e.keyCode == 46 && mySel != null) { 
+            tokens.splice(selInd, 1);
+            invalidate();
+            mySel = null;
+            selInd = -1
+        }
+}
+
+
+var gridBoarder;
+var gridWidth;
+var gridHeight;
+var gredSize;
+
+function drawBoard(canvasContext, width, height, size) {
+    canvasContext.beginPath();
+
+    for (var x = 0; x <= width*size; x += size) {
+        canvasContext.moveTo(0.5 + x + gridBoarder, gridBoarder);
+        canvasContext.lineTo(0.5 + x + gridBoarder, height*size+ gridBoarder);
+    }
+
+
+    for (var x = 0; x <= height*size; x += size) {
+        canvasContext.moveTo(gridBoarder, 0.5 + x + gridBoarder);
+        canvasContext.lineTo(width*size + gridBoarder, 0.5 + x + gridBoarder);
+    }
+
+    canvasContext.strokeStyle = "black";
+    canvasContext.lineWidth = 1;
+    canvasContext.stroke();
+}
+
+//Box object to hold data for all drawn rects
+function Box() {
+    this.x = 0;
+    this.y = 0;
+    this.w = 1; 
+    this.h = 1;
+    this.fill = '#444444';
+}
+
+//Initialize a new Box, add it, and invalidate the canvas
+function addRect(x, y, w, h, fill) {
+    var rect = new Box;
+    rect.x = x;
+    rect.y = y;
+    rect.w = w
+        rect.h = h;
+    rect.fill = fill;
+    tokens.push(rect);
+    invalidate();
+}
+
+// holds all our rectangles
+var tokens = [];
+
+var canvas;
+var ctx;
+var WIDTH;
+var HEIGHT;
+var INTERVAL = 20;
+
+var isDrag = false;
+var isScale = false;
+var mx, my; 
+
+var canvasValid = false;
+
+var mySel; 
+var selInd;
+
+var mySelColor = '#CC0000';
+var mySelWidth = 2;
+var mySelScalerSize = 16;
+var selection = [];
+
+var cp;
+
+// we use a fake canvas to draw individual shapes for selection testing
+var ghostcanvas;
+var gctx; // fake canvas context
+
+// since we can drag from anywhere in a node
+// instead of just its x/y corner, we need to save
+// the offset of the mouse when we start dragging.
+var offsetx, offsety;
+
+// Padding and border style widths for mouse offsets
+var stylePaddingLeft, stylePaddingTop, styleBorderLeft, styleBorderTop;
+
+function init() {
+    canvas = document.getElementById('canvas');
+    HEIGHT = canvas.height;
+    WIDTH = canvas.width;
+    ctx = canvas.getContext('2d');
+    ghostcanvas = document.createElement('canvas');
+    ghostcanvas.height = HEIGHT;
+    ghostcanvas.width = WIDTH;
+    gctx = ghostcanvas.getContext('2d');
+    gridBoarder = 10;
+    gridWidth = 20;
+    gridHeight = 20;
+    gridSize = 40;
+
+    cp = new ControlPanel(ctx, [1,2,3], 30, 30);
+
+    //fixes a problem where double clicking causes text to get selected on the canvas
+    canvas.onselectstart = function () { return false; }
+
+    // fixes mouse co-ordinate problems when there's a border or padding
+    // see getMouse for more detail
+    if (document.defaultView && document.defaultView.getComputedStyle) {
+        stylePaddingLeft = parseInt(document.defaultView.getComputedStyle(canvas, null)['paddingLeft'], 10)      || 0;
+        stylePaddingTop  = parseInt(document.defaultView.getComputedStyle(canvas, null)['paddingTop'], 10)       || 0;
+        styleBorderLeft  = parseInt(document.defaultView.getComputedStyle(canvas, null)['borderLeftWidth'], 10)  || 0;
+        styleBorderTop   = parseInt(document.defaultView.getComputedStyle(canvas, null)['borderTopWidth'], 10)   || 0;
+    }
+
+    // make draw() fire every INTERVAL milliseconds
+    setInterval(draw, INTERVAL);
+
+    // set our events. Up and down are for dragging,
+    // double click is for making new boxes
+    canvas.onmousedown = myDown;
+    canvas.onmouseup = myUp;
+
+}
+
+// Clears the canvas
+function clear(c) {
+    c.clearRect(0, 0, WIDTH, HEIGHT);
+}
+
+function draw() {
+    //Draw only if something has changed on the canvas
+    if (canvasValid == false) {
+        clear(ctx);
+
+        // Add stuff you want drawn in the background all the time here
+        //drawBoard(ctx, gridWidth, gridWidth, gridSize);
+        cp.draw();
+
+        // draw all tokens 
+        var l = tokens.length;
+        for (var i = 0; i < l; i++) {
+            if(tokens[i].img)
+                drawToken(ctx, tokens[i]);
+            else
+                drawshape(ctx, tokens[i], tokens[i].fill);
+        }
+
+        // draw selection
+        if (mySel != null) {
+            ctx.beginPath();
+            ctx.strokeStyle = mySelColor;
+            ctx.lineWidth = mySelWidth;
+            ctx.fillStyle = mySelColor;
+            ctx.fillRect(mySel.x-mySelScalerSize/2, mySel.y-mySelScalerSize/2, mySelScalerSize, mySelScalerSize);
+            ctx.fillRect(mySel.x+mySel.w-mySelScalerSize/2, mySel.y-mySelScalerSize/2, mySelScalerSize, mySelScalerSize);
+            ctx.fillRect(mySel.x+mySel.w-mySelScalerSize/2, mySel.y+mySel.h-mySelScalerSize/2, mySelScalerSize, mySelScalerSize);
+            ctx.fillRect(mySel.x-mySelScalerSize/2, mySel.y+mySel.h-mySelScalerSize/2, mySelScalerSize, mySelScalerSize);
+            ctx.strokeRect(mySel.x,mySel.y,mySel.w,mySel.h);
+        }
+
+        // Add stuff you want drawn on top all the time here
+
+
+        canvasValid = true;
+    }
+}
+
+// Draws a single shape to a single context
+function drawshape(context, shape, fill) {
+    context.fillStyle = fill;
+
+    // We can skip the drawing of elements that have moved off the screen:
+    if (shape.x > WIDTH || shape.y > HEIGHT) return; 
+    if (shape.x + shape.w < 0 || shape.y + shape.h < 0) return;
+
+    context.fillRect(shape.x,shape.y,shape.w,shape.h);
+}
+
+// Draws a single token to a single context
+function drawToken(context, token) {
+    // We can skip the drawing of elements that have moved off the screen:
+    if (token.x > WIDTH || token.y > HEIGHT) return; 
+    if (token.x + token.w < 0 || token.y + token.h < 0) return;
+
+    context.drawImage(token.img, token.x, token.y, token.w, token.h);
+}
+
+// Happens when the mouse is moving inside the canvas
+function myMove(e) {
+    if (isDrag) {
+        getMouse(e);
+        selection.forEach(function(sel) {
+           tokens[sel].x += mx - mySel.x - offsetx;
+           tokens[sel].y += my - mySel.y - offsety;
+        });
+        mySel.x = mx - offsetx;
+        mySel.y = my - offsety;   
+
+        invalidate();
+    }
+
+    if (isScale) {
+        getMouse(e);
+
+        if(scalerDirection == 0){
+            selection.forEach(function(sel) {
+                tokens[sel].x = (tokens[sel].x - mySel.x) * (offsetx - mx)/mySel.w + mx;
+                tokens[sel].y = (tokens[sel].y - mySel.y) * (offsety - my)/mySel.h + my;
+                tokens[sel].w *= (mySel.w + mySel.x - mx)/mySel.w;
+                tokens[sel].h *= (mySel.h + mySel.y - my)/mySel.h;
+            });
+            mySel.w -= mx - mySel.x; 
+            mySel.h -= my - mySel.y;
+            mySel.x = mx;
+            mySel.y = my;
+
+        } else if(scalerDirection == 1){
+            selection.forEach(function(sel) {
+                tokens[sel].x = (tokens[sel].x - mySel.x) * (mx - offsetx)/mySel.w + mySel.x;
+                tokens[sel].y = (tokens[sel].y - mySel.y) * (offsety - my)/mySel.h + my;
+                tokens[sel].w *= (mx - offsetx)/mySel.w;
+                tokens[sel].h *= (mySel.h + mySel.y - my)/mySel.h;
+            });
+            mySel.w = mx - offsetx;
+            mySel.h -= my - mySel.y;
+            mySel.y = my;
+        } else if(scalerDirection == 2){
+            selection.forEach(function(sel) {
+                tokens[sel].x = (tokens[sel].x - mySel.x) * (mx - offsetx)/mySel.w + mySel.x;
+                tokens[sel].y = (tokens[sel].y - mySel.y) * (my - offsety)/mySel.h + mySel.y;
+                tokens[sel].w *= (mx - offsetx)/mySel.w;
+                tokens[sel].h *= (my - offsety)/mySel.h;
+            });
+            mySel.w = mx - offsetx;
+            mySel.h = my - offsety;
+        } else if(scalerDirection == 3){
+            selection.forEach(function(sel) {
+                tokens[sel].x = (tokens[sel].x - mySel.x) * (offsetx - mx)/mySel.w + mx;
+                tokens[sel].y = (tokens[sel].y - mySel.y) * (my - offsety)/mySel.h + mySel.y;
+                tokens[sel].w *= (mySel.w + mySel.x - mx)/mySel.w;
+                tokens[sel].h *= (my - offsety)/mySel.h;
+            });
+            mySel.w -= mx - mySel.x; 
+            mySel.x = mx;
+            mySel.h = my - offsety;
+        }
+
+        invalidate();
+
+        
+    }
+}
+
+// Happens when the mouse is clicked in the canvas
+function myDown(e) {
+    getMouse(e);
+    clear(gctx);
+    console.log(e);
+
+    if(cp.contains(mx,my)) {
+        canvas.onmousemove = cp.move;
+        return;
+    }
+
+    if(mySel!=null && !e.shiftKey ) {
+        if(mx>mySel.x-mySelScalerSize/2 && mx<mySel.x+mySelScalerSize/2 && my>mySel.y-mySelScalerSize/2 && my<mySel.y+mySelScalerSize/2) {
+            console.log("Top Left");
+            offsetx = mySel.x + mySel.w;
+            offsety = mySel.y + mySel.h;
+            isScale = true;
+            scalerDirection=0;
+            canvas.onmousemove = myMove;
+            return;
+        } else if(mx>mySel.x+mySel.w-mySelScalerSize/2 && mx<mySel.x+mySel.w+mySelScalerSize/2 && my>mySel.y-mySelScalerSize/2 && my<mySel.y+mySelScalerSize/2) {
+            console.log("Top Right");
+            offsetx = mx - mySel.w;
+            offsety = mySel.y + mySel.h;
+            isScale = true;
+            scalerDirection=1;
+            canvas.onmousemove = myMove;
+            return;
+        } else if(mx>mySel.x+mySel.w-mySelScalerSize/2 && mx<mySel.x+mySel.w+mySelScalerSize/2 && my>mySel.y+mySel.h-mySelScalerSize/2 && my<mySel.y+mySel.h+mySelScalerSize/2) {
+            console.log("Bottom Left");
+            offsetx = mx - mySel.w;
+            offsety = my - mySel.h;
+            isScale = true;
+            scalerDirection=2;
+            canvas.onmousemove = myMove;
+            return;
+        } else if(mx>mySel.x-mySelScalerSize/2 && mx<mySel.x+mySelScalerSize/2 && my>mySel.y+mySel.h-mySelScalerSize/2 && my<mySel.y+mySel.h+mySelScalerSize/2) {
+            console.log("Bottom Right");
+            offsetx = mySel.x + mySel.w;
+            offsety = my - mySel.h;
+            isScale = true;
+            scalerDirection=3;
+            canvas.onmousemove = myMove;
+            return;
+        } 
+    }
+
+
+    var l = tokens.length;
+    for (var i = l-1; i >= 0; i--) {
+        // draw shape onto ghost context
+        if(tokens[i].img)
+            drawToken(gctx, tokens[i]);
+        else
+            drawshape(gctx, tokens[i], 'black');
+
+        // get image data at the mouse x,y pixel
+        var imageData = gctx.getImageData(mx, my, 1, 1);
+        var index = (mx + my * imageData.width) * 4;
+
+        // if the mouse pixel exists, select and break
+        if (imageData.data[3] > 0) {
+            if (selection.indexOf(i) == -1) {
+                if (e.shiftKey) {
+                    selection.push(i);
+                } else {
+                    selection = [i];
+                }
+            }
+            var tempX = tokens[selection[0]].x;
+            var tempY = tokens[selection[0]].y;
+            var tempW = tokens[selection[0]].x + tokens[selection[0]].w;
+            var tempH = tokens[selection[0]].y + tokens[selection[0]].h;
+            for (var j = 1; j<selection.length; j++) {
+               var tmp = tokens[selection[j]]; 
+               if (tmp.x < tempX) tempX = tmp.x;
+               if (tmp.y < tempY) tempY = tmp.y;
+               if (tmp.x + tmp.w > tempW) tempW = tmp.x + tmp.w;
+               if (tmp.y + tmp.h > tempH) tempH = tmp.y + tmp.h;
+            }
+            mySel = {};
+            mySel.x = tempX;
+            mySel.y = tempY;
+            mySel.w = tempW - tempX;
+            mySel.h = tempH - tempY;
+            selInd = i;
+            offsetx = mx - mySel.x;
+            offsety = my - mySel.y;
+            isDrag = true;
+            canvas.onmousemove = myMove;
+            invalidate();
+            clear(gctx);
+            return;
+        }
+
+    }
+   // havent returned means we have selected nothing
+    mySel = null;
+    selInd = -1;
+    selection = [];
+    // clear the ghost canvas for next time
+    clear(gctx);
+    // invalidate because we might need the selection border to disappear
+    invalidate();
+}
+
+function myUp(e){
+    if(isDrag && !e.altKey) {
+        //For snapping
+        getMouse(e);
+        
+        var tmpX = mySel.x;
+        var tmpY = mySel.y;
+
+        mySel.x = Math.floor((mx-offsetx-gridBoarder)/gridSize)*gridSize+gridBoarder+1
+                + ((mx-offsetx-gridBoarder)%gridSize>gridSize/2 ? gridSize : 0);
+        mySel.y = Math.floor((my-offsety-gridBoarder)/gridSize)*gridSize+gridBoarder+1
+                + ((my-offsety-gridBoarder)%gridSize>gridSize/2 ? gridSize : 0);
+
+        selection.forEach(function(sel) {
+           tokens[sel].x -= tmpX - mySel.x;
+           tokens[sel].y -= tmpY - mySel.y;
+        });
+        
+        invalidate();
+    }
+    if(isScale && !e.altKey) {
+        //For snapping
+        getMouse(e);
+        if(scalerDirection%3==0) {
+            mySel.w = (-1*Math.floor((mx-gridBoarder)/gridSize)+((offsetx-gridBoarder)/gridSize))*gridSize-1;
+            console.log(mySel.w);
+            mySel.x = Math.floor((mx-gridBoarder)/gridSize)*gridSize+gridBoarder+1;
+        }
+        else
+            mySel.w = Math.ceil((mx-offsetx-gridBoarder)/gridSize)*gridSize-1;
+        if(scalerDirection<2) {
+            mySel.h = (-1*Math.floor((my-gridBoarder)/gridSize)+((offsety-gridBoarder)/gridSize))*gridSize-1;
+            mySel.y = Math.floor((my-gridBoarder)/gridSize)*gridSize+gridBoarder+1;
+        }
+        else
+            mySel.h = Math.ceil((my-offsety-gridBoarder)/gridSize)*gridSize-1;
+        invalidate();
+    }
+    isDrag = false;
+    isScale = false;
+    canvas.onmousemove = null;
+}
+
+// adds a new node
+function myDblClick(e) {
+    getMouse(e);
+    // for this method width and height determine the starting X and Y, too.
+    // so I left them as vars in case someone wanted to make them args for something and copy this code
+    var width = gridSize-1;
+    var height = gridSize-1;
+    //addRect(mx - (width / 2), my - (height / 2), width, height, '#77DD44');
+
+    addRect(Math.floor((mx-gridBoarder)/gridSize)*gridSize+gridBoarder+1,Math.floor((my-gridBoarder)/gridSize)*gridSize+gridBoarder+1, width, height, '#77DD44');
+}
+
+function invalidate() {
+    canvasValid = false;
+}
+
+// Sets mx,my to the mouse position relative to the canvas
+// unfortunately this can be tricky, we have to worry about padding and borders
+function getMouse(e) {
+    var element = canvas, offsetX = 0, offsetY = 0;
+
+    if (element.offsetParent) {
+        do {
+            offsetX += element.offsetLeft;
+            offsetY += element.offsetTop;
+        } while ((element = element.offsetParent));
+    }
+
+    // Add padding and border style widths to offset
+    offsetX += stylePaddingLeft;
+    offsetY += stylePaddingTop;
+
+    offsetX += styleBorderLeft;
+    offsetY += styleBorderTop;
+
+    mx = e.pageX - offsetX;
+    my = e.pageY - offsetY
+}
+
+function Token() {
+    this.x = 0;
+    this.y = 0;
+    this.w = 1;
+    this.h = 1;
+    this.img;
+}
+
+function addToken(x,y,w,h,src) {
+    var token = new Token;
+    token.x = x;
+    token.y = y;
+    token.w = w;
+    token.h = h;
+    token.img = document.createElement("img");
+    token.img.setAttribute("src", src);
+
+    tokens.push(token);
+
+    invalidate();
+
+}
+
+// If you dont want to use <body onLoad='init()'>
+// You could uncomment this init() reference and place the script reference inside the body tag
+//init();
+
+</script>
+
+</body>
+</html>
+

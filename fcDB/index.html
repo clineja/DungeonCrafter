@@ -1,0 +1,169 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<link rel="shortcut icon" href="">
+<title>Fantasy Craft Reference</title>
+<script src="fc/jquery-3.1.0.min.js"></script>
+<style>
+input {
+   display: block; 
+   width: 100%;
+}
+</style>
+</head>
+
+<body> 
+
+<form> 
+<fieldset>
+
+<!-- Form Name -->
+<legend>Feat</legend>
+
+<!-- Text input-->
+  <label for="type">Type: </label>  
+  <input id="type" name="type" placeholder="DanSucks" type="text">
+
+<!-- Text input-->
+  <label  for="name">Name: </label>  
+  <input id="name" name="name" placeholder="name" type="text">
+
+<!-- Text input-->
+  <label  for="subName">Sub-Name</label>  
+  <input id="subName" name="subName" placeholder="subName" type="text">
+    
+<!-- Text input-->
+  <label  for="description">Description</label>  
+  <input id="description" name="description" placeholder="description" type="text">
+    
+
+<!-- Text input-->
+  <label  for="prerequisites">Prerequisites</label>  
+  <input id="prerequisites" name="prerequisites" placeholder="prerequisites" type="text">
+    
+
+<!-- Text input-->
+  <label  for="benefit">Benefit</label>  
+  <input id="benefit" name="benefit" placeholder="benefit" type="text">
+    
+
+<!-- Text input-->
+  <label  for="trickStanceName">Trick/Stance Name</label>  
+  <input id="trickStanceName" name="trickStanceName" placeholder="trickStanceName" type="text">
+    
+
+<!-- Text input-->
+  <label  for="trickStanceType">Trick/Stance Type:</label>  
+  <input id="trickStanceType" name="trickStanceType" placeholder="trickStanceType" type="text">
+    
+
+<!-- Text input-->
+  <label  for="trickStanceDescription">Trick/Stance Description:</label>  
+  <input id="trickStanceDescription" name="trickStanceDescription" placeholder="trickStanceDescription" type="text">
+    
+
+<!-- Text input-->
+  <label  for="list">List</label>  
+  <input id="list" name="list" placeholder="list" type="text">
+    
+
+<!-- Text input-->
+  <label  for="special1">First Special:</label>  
+  <input id="special1" name="special1" placeholder="special1" type="text">
+
+<!-- Text input-->
+  <label  for="special2">Second Special:</label>  
+  <input id="special2" name="special2" placeholder="special2" type="text">
+    
+
+<!-- Text input-->
+  <label  for="special3">Third Special</label>  
+  <input id="special3" name="special3" placeholder="special3" type="text">
+
+<!-- Text input-->
+  <label  for="referencePage">Reference Page:</label>  
+  <input id="referencePage" name="referencePage" placeholder="referencePage" type="text">
+
+<!-- Text input-->
+  <label  for="keywords">Keywords</label>  
+  <input id="keywords" name="keywords" placeholder="keywords" type="text">
+    
+
+<!-- Button -->
+
+</fieldset>
+</form>
+<button onclick="clickFunction()" style="float:right">Find</button>
+
+<script>
+/*
+function loadData () {
+    $.ajax({
+        type: 'GET',
+        url: 'https://jservbox.com/fcdb/feat',
+        data: {
+            "test": "testing"
+            },
+        dataType: 'json',
+        success: function (response) {
+            console.log(response);
+            if(response.success) {
+                console.log(response.data); // `response.data` holds the html
+                                            // data from the server, do what you want :)
+            }
+        }
+    });
+}
+
+function createData () {
+    $.ajax({
+        type: 'POST',
+        url: 'https://jservbox.com/fcdb/feat',
+        success: function (response) {
+            console.log(response);
+            if(response.success) {
+                console.log(response.data); // `response.data` holds the html
+                                            // data from the server, do what you want :)
+            }
+        }
+    });
+}
+*/
+function clickFunction() {
+    console.log("click");
+    $.ajax({
+        type: 'POST',
+        url: 'https://jservbox.com/fcdb/feat',
+        data: {
+            type:                   $("#type").val(),
+            name:                   $("#name").val(),
+            subName:                $("#subName").val(),
+            description:            $("#description").val(),
+            prerequists:            $("#prerequists").val(),
+            benefit:                $("#benefit").val(),
+            trickStanceName:        $("#trickStanceName").val(),
+            trickStanceType:        $("#trickStanceType").val(),
+            trickStanceDescription: $("#trickStanceDescription").val(),
+            list:                   $("#list").val(),
+            special1:               $("#special1").val(),
+            special2:               $("#special2").val(),
+            special3:               $("#special3").val(),
+            referencePage:          $("#referencePage").val(),
+            keywords:               $("#keywords").val(),
+        },
+        datatype: 'json',
+        success: function (response) {
+            console.log(response);
+            if(response.success) {
+                console.log(response.data); // `response.data` holds the html
+                                            // data from the server, do what you want :)
+            }
+        }
+    });
+}
+
+</script>
+
+</body>
+</html>
+
